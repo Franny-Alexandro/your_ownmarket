@@ -58,20 +58,24 @@ const Reports: React.FC = () => {
 
   const summary = {
     totalInvested: filteredPurchases.reduce((sum, purchase) => sum + purchase.total, 0),
-    totalSold: filteredSales.reduce((sum, sale) => sum + sale.total, 0),
-    netProfit: filteredSales.reduce((sum, sale) => sum + sale.profit, 0),
+    totalSold: filteredSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0),
+    netProfit: filteredSales.reduce((sum, sale) => sum + (sale.totalProfit || 0), 0),
     salesCount: filteredSales.length,
     purchasesCount: filteredPurchases.length
   };
 
   // Top selling products
   const productSales = filteredSales.reduce((acc, sale) => {
-    if (!acc[sale.productName]) {
-      acc[sale.productName] = { quantity: 0, revenue: 0, profit: 0 };
+    if (sale.items) {
+      sale.items.forEach(item => {
+        if (!acc[item.productName]) {
+          acc[item.productName] = { quantity: 0, revenue: 0, profit: 0 };
+        }
+        acc[item.productName].quantity += item.quantity;
+        acc[item.productName].revenue += item.itemTotal;
+        acc[item.productName].profit += item.itemProfit;
+      });
     }
-    acc[sale.productName].quantity += sale.quantity;
-    acc[sale.productName].revenue += sale.total;
-    acc[sale.productName].profit += sale.profit;
     return acc;
   }, {} as Record<string, { quantity: number; revenue: number; profit: number }>);
 
@@ -251,12 +255,14 @@ const Reports: React.FC = () => {
               {filteredSales.slice(0, 5).map((sale) => (
                 <div key={sale.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-900">{sale.productName}</p>
+                    <p className="font-medium text-gray-900">
+                      {sale.items ? `${sale.items.length} productos` : 'Venta'}
+                    </p>
                     <p className="text-sm text-gray-500">{formatDate(sale.date)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-blue-600">{formatCurrency(sale.total)}</p>
-                    <p className="text-sm text-green-600">+{formatCurrency(sale.profit)}</p>
+                    <p className="font-semibold text-blue-600">{formatCurrency(sale.totalAmount || 0)}</p>
+                    <p className="text-sm text-green-600">+{formatCurrency(sale.totalProfit || 0)}</p>
                   </div>
                 </div>
               ))}

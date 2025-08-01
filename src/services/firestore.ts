@@ -127,48 +127,67 @@ export const getPurchases = (callback: (purchases: Purchase[]) => void) => {
 };
 
 // Sales
-export const addSale = async (sale: Omit<Sale, 'id' | 'createdAt' | 'costPrice' | 'profit'>) => {
+export const addSale = async (cartItems: any[], saleDate: Date) => {
   try {
     const batch = writeBatch(db);
     
-    // Find product to get cost price
-    const productsQuery = query(
-      collection(db, 'products'),
-      where('name', '==', sale.productName)
-    );
-    const productsSnapshot = await getDocs(productsQuery);
-    
-    if (productsSnapshot.empty) {
-      throw new Error('Producto no encontrado en inventario');
+    // Validate stock and prepare sale items
+    const saleItems: any[] = [];
+    let totalAmount = 0;
+    let totalProfit = 0;
+
+    for (const cartItem of cartItems) {
+      const productsQuery = query(
+        collection(db, 'products'),
+        where('name', '==', cartItem.productName)
+      );
+      const productsSnapshot = await getDocs(productsQuery);
+      
+      if (productsSnapshot.empty) {
+        throw new Error(`Producto "${cartItem.productName}" no encontrado en inventario`);
+      }
+
+      const productDoc = productsSnapshot.docs[0];
+      const productData = productDoc.data() as Product;
+      
+      if (productData.quantity < cartItem.quantity) {
+        throw new Error(`Stock insuficiente para "${cartItem.productName}". Disponible: ${productData.quantity}`);
+      }
+
+      const itemTotal = cartItem.quantity * cartItem.salePrice;
+      const itemProfit = (cartItem.salePrice - productData.averageCost) * cartItem.quantity;
+      
+      saleItems.push({
+        productName: cartItem.productName,
+        quantity: cartItem.quantity,
+        salePrice: cartItem.salePrice,
+        costPrice: productData.averageCost,
+        itemTotal,
+        itemProfit
+      });
+
+      totalAmount += itemTotal;
+      totalProfit += itemProfit;
+
+      // Update product quantity
+      const newQuantity = productData.quantity - cartItem.quantity;
+      const newTotalCost = newQuantity * productData.averageCost;
+      
+      batch.update(productDoc.ref, {
+        quantity: newQuantity,
+        totalCost: newTotalCost,
+        updatedAt: serverTimestamp()
+      });
     }
 
-    const productDoc = productsSnapshot.docs[0];
-    const productData = productDoc.data() as Product;
-    
-    if (productData.quantity < sale.quantity) {
-      throw new Error('Stock insuficiente');
-    }
-
-    const costPrice = productData.averageCost;
-    const profit = (sale.salePrice - costPrice) * sale.quantity;
-    
     // Add sale record
     const saleRef = doc(collection(db, 'sales'));
     batch.set(saleRef, {
-      ...sale,
-      costPrice,
-      profit,
+      items: saleItems,
+      totalAmount,
+      totalProfit,
+      date: saleDate,
       createdAt: serverTimestamp()
-    });
-
-    // Update product quantity
-    const newQuantity = productData.quantity - sale.quantity;
-    const newTotalCost = newQuantity * productData.averageCost;
-    
-    batch.update(productDoc.ref, {
-      quantity: newQuantity,
-      totalCost: newTotalCost,
-      updatedAt: serverTimestamp()
     });
 
     await batch.commit();

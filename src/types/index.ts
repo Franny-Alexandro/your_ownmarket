@@ -20,14 +20,29 @@ export interface Purchase {
 
 export interface Sale {
   id: string;
+  items: SaleItem[];
+  totalAmount: number;
+  totalProfit: number;
+  date: Date;
+  createdAt: Date;
+}
+
+export interface SaleItem {
   productName: string;
   quantity: number;
   salePrice: number;
   costPrice: number;
-  total: number;
-  profit: number;
-  date: Date;
-  createdAt: Date;
+  itemTotal: number;
+  itemProfit: number;
+}
+
+export interface CartItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  salePrice: number;
+  availableStock: number;
+  costPrice: number;
 }
 
 export interface DailySummary {
