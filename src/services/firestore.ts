@@ -59,56 +59,121 @@ export const getProducts = (callback: (products: Product[]) => void) => {
 };
 
 // Purchases
-export const addPurchase = async (purchase: Omit<Purchase, 'id' | 'createdAt'>) => {
+export const addPurchase = async (cartItems: any[], supplier: string, purchaseDate: Date) => {
   try {
     const batch = writeBatch(db);
     
+    // Prepare purchase items
+    const purchaseItems: any[] = [];
+    let totalAmount = 0;
+
+    for (const cartItem of cartItems) {
+      const itemTotal = cartItem.quantity * cartItem.unitPrice;
+      
+      purchaseItems.push({
+        productName: cartItem.productName,
+        quantity: cartItem.quantity,
+        unitPrice: cartItem.unitPrice,
+        itemTotal
+      });
+
+      totalAmount += itemTotal;
+    }
+
     // Add purchase record
     const purchaseRef = doc(collection(db, 'purchases'));
     batch.set(purchaseRef, {
-      ...purchase,
+      items: purchaseItems,
+      supplier: supplier || '',
+      totalAmount,
+      date: purchaseDate,
       createdAt: serverTimestamp()
     });
 
-    // Update or create product
-    const productsQuery = query(
-      collection(db, 'products'),
-      where('name', '==', purchase.productName)
-    );
-    const productsSnapshot = await getDocs(productsQuery);
-    
-    if (productsSnapshot.empty) {
-      // Create new product
-      const productRef = doc(collection(db, 'products'));
-      batch.set(productRef, {
-        name: purchase.productName,
-        quantity: purchase.quantity,
-        averageCost: purchase.unitPrice,
-        totalCost: purchase.total,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    } else {
-      // Update existing product
-      const productDoc = productsSnapshot.docs[0];
-      const productData = productDoc.data() as Product;
+    // Update or create products
+    for (const cartItem of cartItems) {
+      const productsQuery = query(
+        collection(db, 'products'),
+        where('name', '==', cartItem.productName)
+      );
+      const productsSnapshot = await getDocs(productsQuery);
       
-      const newQuantity = productData.quantity + purchase.quantity;
-      const newTotalCost = productData.totalCost + purchase.total;
-      const newAverageCost = newTotalCost / newQuantity;
-      
-      batch.update(productDoc.ref, {
-        quantity: newQuantity,
-        averageCost: newAverageCost,
-        totalCost: newTotalCost,
-        updatedAt: serverTimestamp()
-      });
+      if (productsSnapshot.empty) {
+        // Create new product
+        const productRef = doc(collection(db, 'products'));
+        batch.set(productRef, {
+          name: cartItem.productName,
+          quantity: cartItem.quantity,
+          averageCost: cartItem.unitPrice,
+          totalCost: cartItem.quantity * cartItem.unitPrice,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Update existing product
+        const productDoc = productsSnapshot.docs[0];
+        const productData = productDoc.data() as Product;
+        
+        const newQuantity = productData.quantity + cartItem.quantity;
+        const newTotalCost = productData.totalCost + (cartItem.quantity * cartItem.unitPrice);
+        const newAverageCost = newTotalCost / newQuantity;
+        
+        batch.update(productDoc.ref, {
+          quantity: newQuantity,
+          averageCost: newAverageCost,
+          totalCost: newTotalCost,
+          updatedAt: serverTimestamp()
+        });
+      }
     }
 
     await batch.commit();
     return purchaseRef.id;
   } catch (error) {
     console.error('Error adding purchase:', error);
+    throw error;
+  }
+};
+
+// Returns
+export const addReturn = async (returnData: Omit<Return, 'id' | 'createdAt'>) => {
+  try {
+    const batch = writeBatch(db);
+    
+    // Add return record
+    const returnRef = doc(collection(db, 'returns'));
+    batch.set(returnRef, {
+      ...returnData,
+      createdAt: serverTimestamp()
+    });
+
+    // Update product quantities (subtract returned items)
+    for (const item of returnData.items) {
+      const productsQuery = query(
+        collection(db, 'products'),
+        where('name', '==', item.productName)
+      );
+      const productsSnapshot = await getDocs(productsQuery);
+      
+      if (!productsSnapshot.empty) {
+        const productDoc = productsSnapshot.docs[0];
+        const productData = productDoc.data() as Product;
+        
+        const newQuantity = Math.max(0, productData.quantity - item.quantity);
+        const newTotalCost = newQuantity * productData.averageCost;
+        
+        batch.update(productDoc.ref, {
+          quantity: newQuantity,
+          totalCost: newTotalCost,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    await batch.commit();
+    return returnRef.id;
+  } catch (error) {
+    console.error('Error adding return:', error);
     throw error;
   }
 };
@@ -123,6 +188,19 @@ export const getPurchases = (callback: (purchases: Purchase[]) => void) => {
       createdAt: doc.data().createdAt?.toDate() || new Date()
     })) as Purchase[];
     callback(purchases);
+  });
+};
+
+export const getReturns = (callback: (returns: Return[]) => void) => {
+  const q = query(collection(db, 'returns'), orderBy('date', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const returns = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().date?.toDate() || new Date(),
+      createdAt: doc.data().createdAt?.toDate() || new Date()
+    })) as Return[];
+    callback(returns);
   });
 };
 

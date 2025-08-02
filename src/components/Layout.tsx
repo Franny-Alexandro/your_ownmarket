@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, Package, TrendingUp, LogOut, Store, UserPlus, User } from 'lucide-react';
+import { ShoppingCart, Package, TrendingUp, LogOut, Store, UserPlus, User, RotateCcw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import UserRegistration from './UserRegistration';
 
@@ -20,6 +20,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange }) => 
   const tabs = [
     { id: 'inventory', label: 'Inventario', icon: Package },
     { id: 'purchases', label: 'Compras', icon: ShoppingCart },
+    { id: 'returns', label: 'Devoluciones', icon: RotateCcw },
     { id: 'sales', label: 'Ventas', icon: TrendingUp },
     { id: 'reports', label: 'Reportes', icon: Store }
   ];

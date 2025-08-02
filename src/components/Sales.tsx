@@ -300,7 +300,6 @@ const Sales: React.FC = () => {
                       <button
                         onClick={() => removeFromCart(item.productName)}
                         className="text-red-600 hover:text-red-800 p-1"
-                        title="Eliminar producto del carrito"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

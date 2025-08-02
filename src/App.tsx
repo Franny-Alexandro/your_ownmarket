@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Inventory from './components/Inventory';
 import Purchases from './components/Purchases';
+import Returns from './components/Returns';
 import Sales from './components/Sales';
 import Reports from './components/Reports';
 
@@ -36,6 +37,12 @@ function App() {
         return (
           <ProtectedRoute requiredRole="admin">
             <Purchases />
+          </ProtectedRoute>
+        );
+      case 'returns':
+        return (
+          <ProtectedRoute requiredRole="admin">
+            <Returns />
           </ProtectedRoute>
         );
       case 'sales':

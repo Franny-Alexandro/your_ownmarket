@@ -10,12 +10,41 @@ export interface Product {
 
 export interface Purchase {
   id: string;
+  items: PurchaseItem[];
+  supplier?: string;
+  totalAmount: number;
+  date: Date;
+  createdAt: Date;
+}
+
+export interface PurchaseItem {
   productName: string;
   quantity: number;
   unitPrice: number;
-  total: number;
+  itemTotal: number;
+}
+
+export interface CartPurchaseItem {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface Return {
+  id: string;
+  purchaseId: string;
+  items: ReturnItem[];
+  reason: string;
+  totalAmount: number;
   date: Date;
   createdAt: Date;
+}
+
+export interface ReturnItem {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  itemTotal: number;
 }
 
 export interface Sale {

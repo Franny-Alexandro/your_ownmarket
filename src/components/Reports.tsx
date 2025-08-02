@@ -277,18 +277,28 @@ const Reports: React.FC = () => {
             <p className="text-gray-500 text-center py-4">No hay compras en este período</p>
           ) : (
             <div className="space-y-3">
-              {filteredPurchases.slice(0, 5).map((purchase) => (
+              {filteredPurchases.slice(0, 5).map((purchase) => {
+                const displayText = purchase.items 
+                  ? `${purchase.items.length} productos` 
+                  : 'Compra';
+                const displayTotal = purchase.totalAmount || 0;
+                const displayQuantity = purchase.items 
+                  ? purchase.items.reduce((sum, item) => sum + item.quantity, 0)
+                  : 0;
+                
+                return (
                 <div key={purchase.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-900">{purchase.productName}</p>
+                    <p className="font-medium text-gray-900">{displayText}</p>
                     <p className="text-sm text-gray-500">{formatDate(purchase.date)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-red-600">{formatCurrency(purchase.total)}</p>
-                    <p className="text-sm text-gray-600">{purchase.quantity} unidades</p>
+                    <p className="font-semibold text-red-600">{formatCurrency(displayTotal)}</p>
+                    <p className="text-sm text-gray-600">{displayQuantity} unidades</p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
